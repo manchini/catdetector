@@ -1,0 +1,33 @@
+# /etc/systemd/system/cat-detector.service
+#
+# Instalar:
+#   sudo cp cat-detector.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable cat-detector
+#   sudo systemctl start cat-detector
+#
+# Ver logs:
+#   sudo journalctl -u cat-detector -f
+
+[Unit]
+Description=Cat Detector - Sistema de Detecção de Gatos Invasores
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=seu_usuario
+WorkingDirectory=/home/seu_usuario/cat-detector
+ExecStart=/home/seu_usuario/cat-detector/venv/bin/python -m src.main
+Restart=always
+RestartSec=10
+
+# Limites de recursos
+MemoryMax=4G
+CPUQuota=80%
+
+# Variáveis de ambiente
+EnvironmentFile=/home/seu_usuario/cat-detector/.env
+
+[Install]
+WantedBy=multi-user.target

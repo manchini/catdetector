@@ -1,0 +1,22 @@
+# Core
+opencv-python-headless==4.9.0.80
+numpy>=1.24.0
+
+# Detection
+ultralytics>=8.1.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Telegram Bot
+python-telegram-bot==21.3
+
+# Storage
+Pillow>=10.0.0
+PyYAML>=6.0
+requests>=2.31.0
+
+# Small object detection (sliced inference para câmeras de segurança)
+sahi>=0.11.0
+
+# Utilities
+python-dotenv>=1.0.0

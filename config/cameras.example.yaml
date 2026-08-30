@@ -1,0 +1,106 @@
+# Configuração das Câmeras Intelbras
+# Para DVR Intelbras (MHDX), todas as câmeras saem do mesmo IP
+# mudando apenas o channel (1-6)
+#
+# Formato RTSP Intelbras:
+#   rtsp://usuario:senha@IP:554/cam/realmonitor?channel=N&subtype=S
+#   subtype=0 → stream principal (alta resolução)
+#   subtype=1 → stream secundário (menor resolução, ideal para detecção)
+
+# Suporta múltiplos DVRs — cada câmera referencia o seu
+motion_source: dvr  # producao: eventos nativos do DVR; fallback: mog2
+
+dvrs:
+  dvr_casa:
+    host: "192.168.1.10"
+    http_port: 80
+    port: 554
+    username: "admin"
+    password: "sua_senha"
+    # Opcional: credencial com permissao para /RPC_Loadfile.
+    # Se omitido, usa username/password.
+    # rpc_username: "admin"
+    # rpc_password: "sua_senha"
+    poll_interval: 30
+    subtype: 1  # usar stream secundário para economizar CPU
+
+  # dvr_escritorio:
+  #   host: "192.168.1.20"
+  #   http_port: 80
+  #   port: 554
+  #   username: "admin"
+  #   password: "sua_senha"
+  #   poll_interval: 30
+  #   subtype: 1
+
+cameras:
+  - id: cam_frente
+    name: "Frente"
+    dvr: dvr_casa
+    channel: 1
+    enabled: true
+    motion_threshold: 5000
+    # detection_zone: [[0.1, 0.2, 0.9, 0.9]]  # Usa calibrador para definir
+
+  - id: cam_galpao
+    name: "Galpao"
+    dvr: dvr_casa
+    channel: 2
+    enabled: true
+    motion_threshold: 3000
+    # detection_zone: [[0.0, 0.5, 1.0, 1.0]]
+
+  - id: cam_lateral_esq
+    name: "Lateral Esquerda"
+    dvr: dvr_casa
+    channel: 3
+    enabled: true
+    motion_threshold: 5000
+
+  - id: cam_lateral_dir
+    name: "Lateral Direita"
+    dvr: dvr_casa
+    channel: 4
+    enabled: true
+    motion_threshold: 5000
+
+  - id: cam_fundos
+    name: "Fundos"
+    dvr: dvr_casa
+    channel: 5
+    enabled: true
+    motion_threshold: 4000
+
+  - id: cam_garagem
+    name: "Garagem"
+    dvr: dvr_casa
+    channel: 6
+    enabled: true
+    motion_threshold: 6000
+
+# Configurações globais
+detection:
+  confidence_threshold: 0.25
+  cooldown_seconds: 30  # tempo mínimo entre notificações da mesma câmera
+  frame_interval: 2     # analisar 1 frame a cada N segundos
+
+  # Modo reprocessamento (motion_source: dvr)
+  # Força reprocessamento de eventos desde uma data específica.
+  # Formatos aceitos:
+  #   - "today" — reprocessa toda a data de hoje
+  #   - "yesterday" — reprocessa toda a data de ontem
+  #   - "2026-04-14" — reprocessa desde 00:00 da data
+  #   - "2026-04-14 10:30:00" — reprocessa desde horário específico
+  # Deixe comentado para usar modo incremental (padrão)
+  # force_reprocess_since: "today"
+
+  # Salva um frame de debug quando nenhum frame passa no pre-filtro por zona.
+  debug_zero_motion: false
+
+notification:
+  send_unlabeled: true        # notificar mesmo sem classificação
+  # TODO: não implementado ainda
+  # daily_report: true
+  # daily_report_hour: 8
+  # quiet_hours_start: null
+  # quiet_hours_end: null

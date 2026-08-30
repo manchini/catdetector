@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cat Detector</title>
+  <style>
+    :root { color-scheme: light; --bg:#f6f7f8; --panel:#fff; --line:#d9dee3; --ink:#18202a; --muted:#627080; --accent:#1266d6; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:14px/1.35 system-ui, -apple-system, Segoe UI, sans-serif; color:var(--ink); background:var(--bg); }
+    header { height:52px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; border-bottom:1px solid var(--line); background:#fff; }
+    h1 { font-size:18px; margin:0; font-weight:650; }
+    main { display:grid; grid-template-columns:220px minmax(0,1fr); min-height:calc(100vh - 52px); }
+    nav { border-right:1px solid var(--line); padding:14px; background:#fff; }
+    nav button { width:100%; border:0; background:transparent; text-align:left; padding:10px 12px; border-radius:6px; cursor:pointer; color:var(--ink); }
+    nav button.active { background:#e8f1ff; color:#0b55b5; font-weight:650; }
+    section { display:none; padding:18px; }
+    section.active { display:block; }
+    .grid { display:grid; gap:12px; }
+    .cols { display:grid; grid-template-columns:340px minmax(0,1fr); gap:14px; align-items:start; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    label { color:var(--muted); font-size:12px; display:block; margin-bottom:4px; }
+    input, select { width:100%; border:1px solid var(--line); border-radius:6px; padding:8px; background:#fff; color:var(--ink); }
+    .field { min-width:0; flex:1 1 150px; }
+    button.primary { background:var(--accent); color:#fff; border:1px solid var(--accent); border-radius:6px; padding:8px 11px; cursor:pointer; }
+    button.secondary { background:#fff; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:8px 11px; cursor:pointer; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:7px; border-bottom:1px solid var(--line); vertical-align:middle; }
+    th { color:var(--muted); font-size:12px; font-weight:650; }
+    .muted { color:var(--muted); }
+    .events { max-height:260px; overflow:auto; }
+    .thumbs { display:flex; gap:8px; overflow:auto; padding:8px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .thumbs button { border:1px solid var(--line); border-radius:6px; background:#fff; padding:4px; min-width:98px; cursor:pointer; }
+    .thumbs button.active { border-color:var(--accent); box-shadow:0 0 0 2px #cfe1ff inset; }
+    .thumbs img { width:88px; height:54px; object-fit:cover; display:block; }
+    canvas { max-width:100%; height:auto; background:#111; border-radius:6px; border:1px solid var(--line); cursor:crosshair; }
+    .box-list { display:grid; gap:6px; margin-top:8px; }
+    .box-item { display:flex; align-items:center; justify-content:space-between; border:1px solid var(--line); border-radius:6px; padding:6px 8px; background:#fbfcfd; }
+    pre { white-space:pre-wrap; margin:0; color:var(--muted); }
+    .status { min-height:20px; color:var(--muted); }
+  </style>
+</head>
+<body>
+  <header><h1>Cat Detector</h1><div class="muted">localhost</div></header>
+  <main>
+    <nav>
+      <button class="tab active" data-tab="config">Configuracao</button>
+      <button class="tab" data-tab="zones">Zonas</button>
+      <button class="tab" data-tab="review">Revisao</button>
+    </nav>
+    <section id="config" class="active"><div class="panel"><pre id="configText">Carregando...</pre></div></section>
+    <section id="zones">
+      <div class="grid">
+        <div class="panel">
+          <div class="row">
+            <div class="field"><label>Camera</label><select id="zCamera"></select></div>
+            <button class="primary" id="zLoad">Carregar frame</button>
+            <button class="secondary" id="zUndo">Desfazer ultima</button>
+            <button class="secondary" id="zClear">Limpar zonas</button>
+            <button class="primary" id="zSave">Salvar zonas</button>
+          </div>
+          <div class="status" id="zStatus">Selecione uma camera e clique em Carregar frame.</div>
+        </div>
+        <div class="panel" style="position:relative">
+          <canvas id="zCanvas" style="max-width:100%;height:auto;background:#111;border-radius:6px;border:1px solid var(--line);cursor:crosshair;display:block"></canvas>
+          <div style="margin-top:8px;color:var(--muted);font-size:12px">Clique e arraste para desenhar uma zona. As zonas sao salvas em coordenadas normalizadas (0-1) no cameras.yaml.</div>
+          <div class="box-list" id="zList" style="margin-top:8px"></div>
+        </div>
+      </div>
+    </section>
+    <section id="review">
+      <div class="grid">
+        <div class="panel">
+          <div class="row">
+            <div class="field"><label>Camera</label><select id="camera"></select></div>
+            <div class="field"><label>Inicio</label><input id="start" type="datetime-local"></div>
+            <div class="field"><label>Fim</label><input id="end" type="datetime-local"></div>
+            <div class="field" style="max-width:120px"><label>Intervalo</label><input id="interval" type="number" value="1" min="0.2" step="0.2"></div>
+            <button class="primary" id="findEvents">Buscar</button>
+          </div>
+        </div>
+        <div class="cols">
+          <div class="panel">
+            <div class="status" id="eventStatus"></div>
+            <div class="events"><table><thead><tr><th>Inicio</th><th>Dur.</th><th></th></tr></thead><tbody id="events"></tbody></table></div>
+          </div>
+          <div class="panel">
+            <div class="row" style="justify-content:space-between">
+              <div class="row">
+                <div><label>Label</label><select id="label"><option>cat</option><option>my_dog</option><option>other</option></select></div>
+                <button class="secondary" id="undoBox">Remover ultima</button>
+                <button class="secondary" id="clearBoxes">Limpar</button>
+              </div>
+              <div class="row">
+                <button class="secondary" id="falsePositive">Falso positivo</button>
+                <button class="primary" id="saveBoxes">Salvar</button>
+              </div>
+            </div>
+            <div class="thumbs" id="frames"></div>
+            <div style="margin-top:10px"><canvas id="canvas"></canvas></div>
+            <div class="box-list" id="boxList"></div>
+            <div class="status" id="saveStatus"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+<script>
+const state = { config:null, frames:[], current:null, img:null, boxes:[], drawing:null };
+const $ = (id) => document.getElementById(id);
+document.querySelectorAll('.tab').forEach(btn => btn.onclick = () => {
+  document.querySelectorAll('.tab, section').forEach(el => el.classList.remove('active'));
+  btn.classList.add('active'); $(btn.dataset.tab).classList.add('active');
+});
+async function api(path, opts={}) {
+  const res = await fetch(path, opts);
+  const data = path.includes('/frame') ? null : await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error((data && data.error) || res.statusText);
+  return data;
+}
+function fmt(dt) { return new Date(dt).toLocaleString(); }
+function setupDates() {
+  const now = new Date(); const before = new Date(now.getTime() - 60*60*1000);
+  const local = d => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  $('start').value = local(before); $('end').value = local(now);
+}
+async function loadConfig() {
+  state.config = await api('/api/config');
+  $('configText').textContent = JSON.stringify(state.config, null, 2);
+  const camOpts = (state.config.cameras || []).map(c => `<option value="${c.id}">${c.name || c.id}</option>`).join('');
+  $('camera').innerHTML = camOpts;
+  $('zCamera').innerHTML = camOpts;
+}
+async function findEvents() {
+  $('eventStatus').textContent = 'Buscando eventos...';
+  $('events').innerHTML = '';
+  const qs = new URLSearchParams({camera_id:$('camera').value, start:$('start').value, end:$('end').value});
+  const data = await api('/api/review/events?' + qs);
+  $('eventStatus').textContent = `${data.events.length} evento(s)`;
+  $('events').innerHTML = data.events.map(ev => `<tr><td>${fmt(ev.start_time)}</td><td>${Math.round(ev.duration_seconds)}s</td><td><button class="secondary" data-open="${ev.id}">Abrir</button></td></tr>`).join('');
+  document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openEvent(b.dataset.open));
+}
+async function openEvent(id) {
+  $('eventStatus').textContent = 'Extraindo frames...';
+  const data = await api('/api/review/open', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event_id:id, frame_interval:parseFloat($('interval').value || '1')})});
+  state.frames = data.frames; $('eventStatus').textContent = `${data.frames.length} frame(s)`;
+  $('frames').innerHTML = state.frames.map((f,i) => `<button data-frame="${f.id}"><img src="/api/review/frame?id=${f.id}"><span>${i+1}</span></button>`).join('');
+  document.querySelectorAll('[data-frame]').forEach(b => b.onclick = () => selectFrame(b.dataset.frame));
+  if (state.frames[0]) selectFrame(state.frames[0].id);
+}
+async function selectFrame(id) {
+  state.current = state.frames.find(f => f.id === id);
+  state.boxes = [];
+  document.querySelectorAll('[data-frame]').forEach(b => b.classList.toggle('active', b.dataset.frame === id));
+  const ann = await api('/api/review/annotations?frame_id=' + encodeURIComponent(id));
+  state.boxes = (ann.boxes || []).map(b => ({label:b.label, bbox_px:b.bbox_px || b.bbox}));
+  const img = new Image();
+  img.onload = () => { state.img = img; const c=$('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight; draw(); };
+  img.src = '/api/review/frame?id=' + encodeURIComponent(id) + '&t=' + Date.now();
+}
+function pos(evt) {
+  const r = $('canvas').getBoundingClientRect();
+  return {x:(evt.clientX-r.left)*$('canvas').width/r.width, y:(evt.clientY-r.top)*$('canvas').height/r.height};
+}
+function draw() {
+  const c=$('canvas'), ctx=c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height); if (state.img) ctx.drawImage(state.img,0,0);
+  [...state.boxes, state.drawing].filter(Boolean).forEach(box => {
+    const [x1,y1,x2,y2]=box.bbox_px; ctx.strokeStyle='#ffd400'; ctx.lineWidth=3; ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+    ctx.fillStyle='#ffd400'; ctx.font='18px system-ui'; ctx.fillText(box.label || $('label').value, x1+4, Math.max(20,y1-6));
+  });
+  $('boxList').innerHTML = state.boxes.map((b,i)=>`<div class="box-item"><span>${i+1}. ${b.label} [${b.bbox_px.map(v=>Math.round(v)).join(', ')}]</span><button class="secondary" data-del="${i}">Remover</button></div>`).join('');
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { state.boxes.splice(parseInt(b.dataset.del),1); draw(); });
+}
+$('canvas').onmousedown = e => { const p=pos(e); state.drawing={label:$('label').value,bbox_px:[p.x,p.y,p.x,p.y]}; };
+$('canvas').onmousemove = e => { if(!state.drawing) return; const p=pos(e); state.drawing.bbox_px[2]=p.x; state.drawing.bbox_px[3]=p.y; draw(); };
+$('canvas').onmouseup = e => { if(!state.drawing) return; const p=pos(e); state.drawing.bbox_px[2]=p.x; state.drawing.bbox_px[3]=p.y; state.boxes.push(state.drawing); state.drawing=null; draw(); };
+$('undoBox').onclick = () => { state.boxes.pop(); draw(); };
+$('clearBoxes').onclick = () => { state.boxes=[]; draw(); };
+async function save(status) {
+  if (!state.current) return;
+  $('saveStatus').textContent = 'Salvando...';
+  const payload = {frame_id:state.current.id, status, boxes: status === 'false_positive' ? [] : state.boxes};
+  const data = await api('/api/review/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  $('saveStatus').textContent = `Salvo: ${data.detection_ids.length} registro(s)`;
+}
+$('saveBoxes').onclick = () => save('annotated').catch(e => $('saveStatus').textContent = e.message);
+$('falsePositive').onclick = () => save('false_positive').catch(e => $('saveStatus').textContent = e.message);
+$('findEvents').onclick = () => findEvents().catch(e => $('eventStatus').textContent = e.message);
+
+// ── Zonas ────────────────────────────────────────────────────────────
+const zs = { img: null, zones: [], drawing: null };
+const zc = () => $('zCanvas');
+const zCtx = () => zc().getContext('2d');
+
+const COLORS = ['#3b82f6','#f97316','#22c55e','#a855f7','#ef4444','#eab308','#06b6d4','#ec4899'];
+
+function zPos(evt) {
+  const r = zc().getBoundingClientRect();
+  return {
+    x: (evt.clientX - r.left) * zc().width / r.width,
+    y: (evt.clientY - r.top) * zc().height / r.height,
+  };
+}
+
+function zDraw() {
+  const c = zc(), ctx = zCtx();
+  ctx.clearRect(0, 0, c.width, c.height);
+  if (zs.img) ctx.drawImage(zs.img, 0, 0);
+  [...zs.zones, zs.drawing].filter(Boolean).forEach((zone, i) => {
+    const [nx1, ny1, nx2, ny2] = zone;
+    const x1 = nx1 * c.width, y1 = ny1 * c.height;
+    const x2 = nx2 * c.width, y2 = ny2 * c.height;
+    const color = COLORS[i % COLORS.length];
+    ctx.fillStyle = color + '33';
+    ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    ctx.fillStyle = color;
+    ctx.font = 'bold 13px system-ui';
+    ctx.fillText(`Z${i + 1}`, x1 + 5, y1 + 16);
+  });
+  $('zList').innerHTML = zs.zones.map((z, i) => {
+    const color = COLORS[i % COLORS.length];
+    const fmt = v => v.toFixed(3);
+    return `<div class="box-item"><span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:2px;background:${color};display:inline-block"></span>Z${i+1}: [${z.map(fmt).join(', ')}]</span><button class="secondary" data-zdel="${i}">Remover</button></div>`;
+  }).join('');
+  document.querySelectorAll('[data-zdel]').forEach(b => b.onclick = () => {
+    zs.zones.splice(parseInt(b.dataset.zdel), 1); zDraw();
+  });
+}
+
+zc().onmousedown = e => {
+  if (!zs.img) return;
+  const p = zPos(e), c = zc();
+  zs.drawing = [p.x / c.width, p.y / c.height, p.x / c.width, p.y / c.height];
+};
+zc().onmousemove = e => {
+  if (!zs.drawing) return;
+  const p = zPos(e), c = zc();
+  zs.drawing[2] = p.x / c.width; zs.drawing[3] = p.y / c.height; zDraw();
+};
+zc().onmouseup = e => {
+  if (!zs.drawing) return;
+  const p = zPos(e), c = zc();
+  zs.drawing[2] = p.x / c.width; zs.drawing[3] = p.y / c.height;
+  const [x1,y1,x2,y2] = zs.drawing;
+  if (Math.abs(x2-x1) > 0.01 && Math.abs(y2-y1) > 0.01)
+    zs.zones.push([Math.min(x1,x2), Math.min(y1,y2), Math.max(x1,x2), Math.max(y1,y2)]);
+  zs.drawing = null; zDraw();
+};
+
+async function zLoadFrame() {
+  const cam = $('zCamera').value;
+  if (!cam) return;
+  $('zStatus').textContent = 'Carregando frame...';
+  try {
+    const zonesData = await api('/api/zones?camera_id=' + encodeURIComponent(cam));
+    zs.zones = zonesData.zones || [];
+    const img = new Image();
+    img.onload = () => {
+      zs.img = img;
+      const c = zc();
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      zDraw();
+      $('zStatus').textContent = `Frame carregado (${img.naturalWidth}x${img.naturalHeight}) — ${zs.zones.length} zona(s)`;
+    };
+    img.onerror = () => $('zStatus').textContent = 'Erro ao carregar frame.';
+    img.src = '/api/zones/frame?camera_id=' + encodeURIComponent(cam) + '&t=' + Date.now();
+  } catch(e) { $('zStatus').textContent = 'Erro: ' + e.message; }
+}
+
+async function zSaveZones() {
+  const cam = $('zCamera').value;
+  if (!cam) return;
+  $('zStatus').textContent = 'Salvando...';
+  try {
+    const data = await api('/api/zones/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({camera_id: cam, zones: zs.zones}),
+    });
+    $('zStatus').textContent = `Salvo: ${data.count} zona(s) em cameras.yaml`;
+  } catch(e) { $('zStatus').textContent = 'Erro ao salvar: ' + e.message; }
+}
+
+$('zLoad').onclick = () => zLoadFrame().catch(e => $('zStatus').textContent = e.message);
+$('zUndo').onclick = () => { zs.zones.pop(); zDraw(); };
+$('zClear').onclick = () => { zs.zones = []; zDraw(); };
+$('zSave').onclick = () => zSaveZones().catch(e => $('zStatus').textContent = e.message);
+
+setupDates(); loadConfig().catch(e => $('configText').textContent = e.message);
+</script>
+</body>
+</html>

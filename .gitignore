@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+.test_tmp/
+tmp*/
+
+# Ambiente e secrets
+.env
+.env.*
+!.env.example
+
+# Modelos YOLO (baixados automaticamente pelo Ultralytics na primeira execução)
+*.pt
+*_openvino_model/
+models/*.pt
+models/*_openvino_model/
+
+# Detecções e mídia local (não versionar footage de câmera)
+detections/unlabeled/*.jpg
+detections/labeled/**/*.jpg
+detections/*.db
+detections/dvr_state.json
+detections/dvr_downloads/
+detections/analysis/
+detections/manual_review/
+detections/loop_logs/
+*.dav
+
+# Configuração com credenciais — só cameras.example.yaml vai ao repo
+config/cameras.yaml
+
+# Scripts de diagnóstico amarrados a um DVR específico
+scripts/diagnose_casa2_*.py
+scripts/validate_casa2_*.py
+
+# Logs
+*.log
+
+# IDE / tooling local
+.vscode/
+.idea/
+.claude/
+.continue/
+.openclaude/
+.cursor/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
